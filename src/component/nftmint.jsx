@@ -69,6 +69,7 @@ export default function NFT({ account }) {
   const [amount, setAmount] = useState(0n);
   const [myNFTs, setMyNFTs] = useState(null);
   const [view, setView] = useState();
+  const [nId, setnId] = useState();
   const input = useRef(null);
   const [alertModal, setAlertModal] = useState(false);
   const [txnStatus, setTxnStatus] = useState("");
@@ -122,46 +123,101 @@ export default function NFT({ account }) {
   //   });
   // };
 
+  const getIT = (id) => {
+    return new Promise(async (resolve, reject) => {
+      let tokenID = "0000000" + (id + 1);
+      const stext = tokenID.length;
+      tokenID = tokenID.substring(stext - 8, stext);
+      console.log(tokenID);
+      const userInput = [
+        {
+          address: {
+            Account: [account],
+          },
+          token_id: tokenID,
+        },
+      ];
+      const inputParams = serializeUpdateContractParameters(
+        CONTRACT_NAME,
+        "balanceOf",
+        userInput,
+        Buffer.from(RAW_SCHEMA, "base64")
+      );
+      const provider = await detectConcordiumProvider();
+
+      const res = await provider.getJsonRpcClient().invokeContract({
+        contract: { index: CONTRACT_INDEX, subindex: CONTRACT_SUB_INDEX },
+        method: `${CONTRACT_NAME}.balanceOf`,
+        parameter: inputParams,
+      });
+      console.log(res);
+      if (res.tag === "success") {
+        id++;
+        resolve({ res: res, tokenID: tokenID });
+      } else {
+        resolve({ res: null, tokenID: tokenID });
+      }
+    });
+  };
+
   const getBalanceOf = async (account) => {
     let myIds = [];
-    Promise.all(
-      [...Array(10).keys()].map(async (ele) => {
-        let tokenID = "0000000" + (ele + 1);
-        const stext = tokenID.length;
-        tokenID = tokenID.substring(stext - 8, stext);
-        console.log(tokenID);
-        const userInput = [
-          {
-            address: {
-              Account: [account],
-            },
-            token_id: tokenID,
-          },
-        ];
-        const inputParams = serializeUpdateContractParameters(
-          CONTRACT_NAME,
-          "balanceOf",
-          userInput,
-          Buffer.from(RAW_SCHEMA, "base64")
-        );
-        const provider = await detectConcordiumProvider();
-
-        const res = await provider.getJsonRpcClient().invokeContract({
-          contract: { index: CONTRACT_INDEX, subindex: CONTRACT_SUB_INDEX },
-          method: `${CONTRACT_NAME}.balanceOf`,
-          parameter: inputParams,
-        });
-        console.log("id no", tokenID, res);
-        const buffVal = toBuffer(res.returnValue, "hex");
-        // console.log("buffval", buffVal);
-        // console.log("readint", buffVal.toString());
-        if (res.tag === "success" && res.returnValue === "010001") {
-          myIds.push(tokenID);
+    let kRun = true;
+    let id = 0;
+    new Promise(async (resolve, reject) => {
+      while (kRun) {
+        const ans = await getIT(id);
+        if (ans.res) {
+          id++;
+          if (ans.res.returnValue === "010001") {
+            myIds.push(ans.tokenID);
+          }
+        } else {
+          kRun = false;
+          console.log("tokenId", ans.tokenID);
+          setnId(ans.tokenID);
+          setMyNFTs(myIds);
         }
-      })
-    ).then((values) => {
+      }
+    }).then((values) => {
       setMyNFTs(myIds); // [3, 1337, "foo"]
     });
+
+    // Promise.all(
+    //   [...Array(13).keys()].map(async (ele) => {
+    //     let tokenID = "0000000" + (ele + 1);
+    //     const stext = tokenID.length;
+    //     tokenID = tokenID.substring(stext - 8, stext);
+    //     console.log(tokenID);
+    //     const userInput = [
+    //       {
+    //         address: {
+    //           Account: [account],
+    //         },
+    //         token_id: tokenID,
+    //       },
+    //     ];
+    //     const inputParams = serializeUpdateContractParameters(
+    //       CONTRACT_NAME,
+    //       "balanceOf",
+    //       userInput,
+    //       Buffer.from(RAW_SCHEMA, "base64")
+    //     );
+    //     const provider = await detectConcordiumProvider();
+
+    //     const res = await provider.getJsonRpcClient().invokeContract({
+    //       contract: { index: CONTRACT_INDEX, subindex: CONTRACT_SUB_INDEX },
+    //       method: `${CONTRACT_NAME}.balanceOf`,
+    //       parameter: inputParams,
+    //     });
+
+    //     if (res.tag === "success" && res.returnValue === "010001") {
+    //       myIds.push(tokenID);
+    //     }
+    //   })
+    // ).then((values) => {
+    //   setMyNFTs(myIds); // [3, 1337, "foo"]
+    // });
   };
   // const viewMinted = async () => {
   //   // "cis2_nft.viewMinted"
@@ -289,7 +345,7 @@ export default function NFT({ account }) {
             owner: {
               Account: [account],
             },
-            tokens: ["00000008"],
+            tokens: [nId],
           },
           RAW_SCHEMA,
           1
@@ -309,6 +365,7 @@ export default function NFT({ account }) {
                 ) {
                   const outcome = Object.values(status.outcomes)[0];
                   if (outcome.result.outcome === "success") {
+                    getBalanceOf(account);
                     setTxnStatus("success");
                     setAlertModal(true);
 
@@ -394,7 +451,7 @@ export default function NFT({ account }) {
             <Card.Body>
               <Card.Title>Ids</Card.Title>
               <Card.Text>
-                {myNFTs == null ? (
+                {!account ? null : myNFTs == null ? (
                   <Spinner animation="border" />
                 ) : myNFTs.length == 0 ? (
                   "No NFTs to rent !"

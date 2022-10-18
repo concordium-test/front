@@ -75,7 +75,6 @@ export default function Home() {
             <Nav.Link href="#rent" onClick={() => setTab("rent")}>
               Rent
             </Nav.Link>
-            <Nav.Link href="#pricing">Pricing</Nav.Link>
           </Nav>
           <Button variant="secondary" onClick={handleOnClick}>
             {account ? account : "Connect"}

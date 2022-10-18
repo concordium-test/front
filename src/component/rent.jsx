@@ -127,8 +127,10 @@ export default function Rent({ account }) {
   const getBalanceOf = async (account) => {
     let myIds = [];
     Promise.all(
-      [...Array(10).keys()].map(async (ele) => {
-        const tokenID = "0000000" + (ele + 1);
+      [...Array(13).keys()].map(async (ele) => {
+        let tokenID = "0000000" + (ele + 1);
+        const stext = tokenID.length;
+        tokenID = tokenID.substring(stext - 8, stext);
         const userInput = [
           {
             address: {
@@ -266,7 +268,7 @@ export default function Rent({ account }) {
             _interestRate: "00000001",
             _loanCompleteTime: "2022-10-17T12:50:15+00:00",
             _maxLoanAmount: "1",
-            _tokenId: lendModal,
+            _tokenId: "00000012",
             collateral_amount: 1,
             receiver_addr: "3d71NUkw1F1dCR7tgtEkBUEtZqEmcXbmoizpWcMcr761hgwj6m",
           },
@@ -291,7 +293,7 @@ export default function Rent({ account }) {
                   if (outcome.result.outcome === "success") {
                     setTxnStatus("success");
                     setAlertModal(true);
-
+                    getBalanceOf(account);
                     console.log(outcome);
                   } else {
                     setTxnStatus("danger");
